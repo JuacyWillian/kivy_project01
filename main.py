@@ -1,11 +1,15 @@
+# todo: elaborar e implementar melhor a interface com o usuario
+
+
+
 from datetime import datetime, date, timedelta, time
 
 from kivy.app import App
-from kivy.properties import (
-    ObjectProperty, StringProperty, Clock)
+from kivy.properties import (ObjectProperty, StringProperty, Clock)
 from kivy.uix.relativelayout import RelativeLayout
 from kivy.uix.screenmanager import Screen
-from kivymd.list import TwoLineListItem
+from kivymd.list import ThreeLineListItem
+from kivymd.menu import MDDropdownMenu
 from kivymd.theming import ThemeManager
 
 from lib import JobManager
@@ -96,7 +100,7 @@ class NextStop(Widget1):
         )
 
 
-class JobListItem(TwoLineListItem):
+class JobListItem(ThreeLineListItem):
     def on_release(self):
         app = App.get_running_app()
         JobManager().select_job(self.text)
@@ -112,15 +116,15 @@ class JobListScreen(Screen):
         ml = self.ids.mylist
 
         for c in JobManager().job_list:
-            item = JobListItem(text=c['name'], secondary_text=c['description'])
+            status = '[color=green]{}[/color]'.format(c['status']) if c['status'] in ['started', 'paused'] else c[
+                'status']
+            item = JobListItem(text=c['name'], secondary_text="{}\n{}".format(c['description'], status), )
             ml.add_widget(item)
 
     def on_pre_enter(self, *args):
         app = App.get_running_app()
         tb = app.root.ids.toolbar
-        tb.left_action_items = [
-            ['menu', lambda x: app.root.toggle_nav_drawer()]
-        ]
+        tb.left_action_items = [['menu', lambda x: app.root.toggle_nav_drawer()]]
 
     def new_job(self):
         app = App.get_running_app()
@@ -143,16 +147,27 @@ class JobDetailScreen(Screen):
         self.job_name = job['name']
         self.job_description = job['description']
 
+        self.menu_items = [
+            {'viewclass': 'MDMenuItem', 'text': 'Edit', 'on_release': lambda: print('edit')},
+            {'viewclass': 'MDMenuItem', 'text': 'Analize', 'on_release': lambda: print('analyze')},
+        ]
+
         super(JobDetailScreen, self).__init__(**kwargs)
 
     def on_pre_enter(self, *args):
         app = App.get_running_app()
         tb = app.root.ids.toolbar
-        tb.left_action_items = [
-            ['arrow-left', lambda x: app.switch_to('joblist')]
-        ]
+        tb.left_action_items = [['arrow-left', lambda x: app.switch_to('joblist')]]
+        tb.right_action_items = [['dots-vertical', lambda x: self.show_menu()]]
 
         self.events.append(Clock.schedule_interval(self._update, 1))
+
+    def show_menu(self):
+        menu = MDDropdownMenu(
+            items=self.menu_items, width_mult=4,
+            pos_hint={'top': 1, 'right': 1}
+        )
+        menu.open(self)
 
     def on_leave(self, *args):
         for e in self.events:
@@ -172,16 +187,18 @@ class JobDetailScreen(Screen):
 
     def play_pause(self):
         jm = JobManager()
+
         if jm.job_status == 'stopped':
             jm.start_job()
         elif jm.job_status == 'paused':
-            JobManager().unpause_job()
+            jm.unpause_job()
         else:
-            JobManager().pause_job()
+            jm.pause_job()
 
     def stop(self):
-        JobManager().stop_job()
-        JobManager().save()
+        jm = JobManager()
+        jm.stop_job()
+        jm.save(jm.job)
 
 
 class NewJobScreen(Screen):
@@ -209,7 +226,7 @@ class SettingsScreen(Screen):
 
 # APP
 class WorkingAtHome(App):
-    theme_cls = ThemeManager(theme_style='Dark')
+    theme_cls = ThemeManager()
     previous_date = ObjectProperty()
     title = "Working At Home"
 
@@ -227,7 +244,7 @@ class WorkingAtHome(App):
         return self.root
 
     def on_stop(self):
-        JobManager().save()
+        JobManager().save_all()
 
     def switch_to(self, scr_name: str):
         self.scrmngr.switch_to(self.screens[scr_name]())
