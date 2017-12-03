@@ -8,6 +8,8 @@ from time import sleep
 
 from kivy.app import App
 
+from models import Job, Workday, Stop
+
 
 class JobManager():
     __instance = None
@@ -36,7 +38,7 @@ class JobManager():
 
     @property
     def job_list(self):
-        return self.__all_jobs
+        return Job.select().order_by(Job.name.desc())
 
     @property
     def job(self):
@@ -44,11 +46,9 @@ class JobManager():
 
     @property
     def job_time(self):
-        wordkays = self.job['workdays']
-        if len(wordkays) >= 1:
-            return datetime.now() - wordkays[-1]['start']
-        else:
-            return timedelta(seconds=0)
+        workdays = (Workday.select(Job, Workday, Stop)
+                    .join(Job).join(Stop)
+                    .where(Job == self.job))
 
     @property
     def job_total_pause_time(self):
@@ -74,15 +74,18 @@ class JobManager():
 
     @property
     def job_status(self):
-        return self.__curr_job['status']
+        return self.__curr_job.status
 
     def new_job(self, name, description):
-        job = dict(name=name, description=description, workdays=[], status=self.__job_status[2])
+        job = Job(name=name, description=description)
+        job.save()
+
+        # job = dict(name=name, description=description, workdays=[], status=self.__job_status[2])
         self.__all_jobs.append(job)
-        self.save(job)
+        # self.save(job)
 
     def select_job(self, name):
-        job = [j for j in self.job_list if j['name'] == name][0]
+        job = Job.get(Job.name == name)
 
         # job['status'] = self.__job_status[2]
         self.__curr_job = job
@@ -128,14 +131,17 @@ class JobManager():
             self.save(job)
 
     def load(self):
-        job_list = [f for f in os.listdir(self.data_dir) if 'job_' in f]
-        for job in job_list:
-            try:
-                with open(os.path.join(self.data_dir, job)) as _file:
-                    self.__all_jobs.append(self.job_from_dict(json.load(_file)))
-            except Exception as err:
-                print(err)
-                print("can't load jobs file")
+        job_list = Job.select()
+        self.__all_jobs = job_list
+
+        # job_list = [f for f in os.listdir(self.data_dir) if 'job_' in f]
+        # for job in job_list:
+        #     try:
+        #         with open(os.path.join(self.data_dir, job)) as _file:
+        #             self.__all_jobs.append(self.job_from_dict(json.load(_file)))
+        #     except Exception as err:
+        #         print(err)
+        #         print("can't load jobs file")
 
     def job_from_dict(self, job):
         _dict = {}

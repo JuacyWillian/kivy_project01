@@ -116,9 +116,8 @@ class JobListScreen(Screen):
         ml = self.ids.mylist
 
         for c in JobManager().job_list:
-            status = '[color=green]{}[/color]'.format(c['status']) if c['status'] in ['started', 'paused'] else c[
-                'status']
-            item = JobListItem(text=c['name'], secondary_text="{}\n{}".format(c['description'], status), )
+            status = '[color=green]{}[/color]'.format(c.status) if c.status in ['started', 'paused'] else c.status
+            item = JobListItem(text=c.name, secondary_text="{}\n{}".format(c.description, status), )
             ml.add_widget(item)
 
     def on_pre_enter(self, *args):
@@ -144,8 +143,8 @@ class JobDetailScreen(Screen):
 
     def __init__(self, **kwargs):
         job = JobManager().job
-        self.job_name = job['name']
-        self.job_description = job['description']
+        self.job_name = job.name
+        self.job_description = job.description
 
         self.menu_items = [
             {'viewclass': 'MDMenuItem', 'text': 'Edit', 'on_release': lambda: print('edit')},
@@ -226,6 +225,9 @@ class SettingsScreen(Screen):
 
 # APP
 class WorkingAtHome(App):
+    """
+    todo
+    """
     theme_cls = ThemeManager()
     previous_date = ObjectProperty()
     title = "Working At Home"
